@@ -1,4 +1,5 @@
 import os
+import time
 import uuid
 from datetime import datetime, timezone
 
@@ -7,12 +8,25 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import func
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from . import models, schemas
 from .database import Base, SessionLocal, engine, get_db
 
-Base.metadata.create_all(bind=engine)
+
+def criar_tabelas_com_retry(tentativas: int = 10, espera_segundos: float = 2.0) -> None:
+    for tentativa in range(1, tentativas + 1):
+        try:
+            Base.metadata.create_all(bind=engine)
+            return
+        except OperationalError:
+            if tentativa == tentativas:
+                raise
+            time.sleep(espera_segundos)
+
+
+criar_tabelas_com_retry()
 
 app = FastAPI(title="Cronograma de Conteúdo API")
 
