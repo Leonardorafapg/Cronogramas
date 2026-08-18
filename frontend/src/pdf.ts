@@ -28,8 +28,9 @@ const PAGE_MARGIN = 40;
 const LINE_HEIGHT = 13;
 const CELL_PADDING = 6;
 const HEADER_HEIGHT = 22;
-const IMG_MAX_WIDTH = 80;
-const IMG_MAX_HEIGHT = 60;
+const IMG_MAX_WIDTH = 70;
+const IMG_MAX_HEIGHT = 55;
+const IMG_GAP = 4;
 
 const COL_WIDTHS = {
   data: 70,
@@ -106,25 +107,34 @@ export async function exportPostsToPdf(cliente: string, rotuloMes: string, posts
     const descricaoLines = doc.splitTextToSize(post.descricao, colWidths.descricao - CELL_PADDING * 2);
 
     let referenciaLines: string[] = [];
-    let imgDims: { width: number; height: number } | null = null;
+    const imagensCarregadas: { dataUri: string; width: number; height: number }[] = [];
 
     if (post.referenciaTipo === "link" && post.referenciaValor) {
       referenciaLines = doc.splitTextToSize(post.referenciaValor, colWidths.referencia - CELL_PADDING * 2);
-    } else if (post.referenciaTipo === "imagem" && post.referenciaValor) {
-      try {
-        const { width, height } = await loadImage(post.referenciaValor);
-        const scale = Math.min(IMG_MAX_WIDTH / width, IMG_MAX_HEIGHT / height, 1);
-        imgDims = { width: width * scale, height: height * scale };
-      } catch {
-        referenciaLines = ["Sem referência."];
+    } else if (post.referenciaTipo === "imagem" && post.referenciaImagens.length > 0) {
+      for (const dataUri of post.referenciaImagens) {
+        try {
+          const { width, height } = await loadImage(dataUri);
+          const scale = Math.min(IMG_MAX_WIDTH / width, IMG_MAX_HEIGHT / height, 1);
+          imagensCarregadas.push({ dataUri, width: width * scale, height: height * scale });
+        } catch {
+          // ignora imagens que falharem ao carregar
+        }
       }
+      if (imagensCarregadas.length === 0) referenciaLines = ["Sem referência."];
     } else {
       referenciaLines = ["Sem referência."];
     }
 
+    const imagensPorLinha = Math.max(1, Math.floor((colWidths.referencia - CELL_PADDING * 2 + IMG_GAP) / (IMG_MAX_WIDTH + IMG_GAP)));
+    const linhasDeImagens = Math.ceil(imagensCarregadas.length / imagensPorLinha);
+
     const textLineCount = Math.max(descricaoLines.length, referenciaLines.length, 1);
     const textBlockHeight = textLineCount * LINE_HEIGHT + CELL_PADDING * 2;
-    const imgBlockHeight = imgDims ? imgDims.height + CELL_PADDING * 2 : 0;
+    const imgBlockHeight =
+      imagensCarregadas.length > 0
+        ? linhasDeImagens * IMG_MAX_HEIGHT + (linhasDeImagens - 1) * IMG_GAP + CELL_PADDING * 2
+        : 0;
     const rowHeight = Math.max(textBlockHeight, imgBlockHeight, HEADER_HEIGHT);
 
     ensureSpace(rowHeight);
@@ -152,16 +162,15 @@ export async function exportPostsToPdf(cliente: string, rotuloMes: string, posts
         doc.textWithLink(line, colX.referencia + CELL_PADDING, lineY, { url: post.referenciaValor });
       });
       doc.setTextColor(0, 0, 0);
-    } else if (imgDims) {
-      const format = post.referenciaValor.startsWith("data:image/png") ? "PNG" : "JPEG";
-      doc.addImage(
-        post.referenciaValor,
-        format,
-        colX.referencia + CELL_PADDING,
-        rowTop + CELL_PADDING,
-        imgDims.width,
-        imgDims.height
-      );
+    } else if (imagensCarregadas.length > 0) {
+      imagensCarregadas.forEach((img, index) => {
+        const col = index % imagensPorLinha;
+        const row = Math.floor(index / imagensPorLinha);
+        const imgX = colX.referencia + CELL_PADDING + col * (IMG_MAX_WIDTH + IMG_GAP);
+        const imgY = rowTop + CELL_PADDING + row * (IMG_MAX_HEIGHT + IMG_GAP);
+        const format = img.dataUri.startsWith("data:image/png") ? "PNG" : "JPEG";
+        doc.addImage(img.dataUri, format, imgX, imgY, img.width, img.height);
+      });
     } else {
       referenciaLines.forEach((line: string, i: number) => {
         doc.text(line, colX.referencia + CELL_PADDING, rowTop + CELL_PADDING + LINE_HEIGHT * (i + 1) - 3);

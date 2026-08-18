@@ -30,6 +30,7 @@ class PostInput(BaseModel):
     descricao: str
     referenciaTipo: ReferenciaTipo = "link"
     referenciaValor: str = ""
+    referenciaImagens: list[str] = []
 
     @field_validator("data", "cliente", "descricao")
     @classmethod
@@ -49,5 +50,6 @@ class PostOut(BaseModel):
     descricao: str
     referenciaTipo: ReferenciaTipo
     referenciaValor: str
+    referenciaImagens: list[str]
     criadoEm: str
     atualizadoEm: str

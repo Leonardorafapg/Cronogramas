@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Text
+from sqlalchemy import JSON, Column, String, Text
 
 from .database import Base
 
@@ -19,5 +19,6 @@ class Post(Base):
     descricao = Column(Text, nullable=False)
     referenciaTipo = Column(String, nullable=False, default="link")
     referenciaValor = Column(Text, nullable=False, default="")
+    referenciaImagens = Column(JSON, nullable=False, default=list)
     criadoEm = Column(String, nullable=False)
     atualizadoEm = Column(String, nullable=False)

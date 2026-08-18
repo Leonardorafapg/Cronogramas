@@ -498,6 +498,80 @@ body {
   object-fit: contain;
 }
 
+.dropzone {
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  padding: 20px 12px;
+  text-align: center;
+  font-size: 13px;
+  color: #666;
+  cursor: pointer;
+  position: relative;
+}
+
+.dropzone:hover {
+  border-color: #4f46e5;
+  color: #4f46e5;
+  background: #f7f7ff;
+}
+
+.dropzone-active {
+  border-color: #4f46e5;
+  background: #f0efff;
+  color: #4f46e5;
+}
+
+.dropzone-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.image-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.image-grid-item {
+  position: relative;
+  width: 72px;
+  height: 72px;
+}
+
+.image-grid-thumb {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #e0e0e3;
+}
+
+.image-grid-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #cc2b2b;
+  color: #fff;
+  border: 2px solid #fff;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.image-grid-remove:hover {
+  background: #a4292a;
+}
+
 .image-preview-clickable {
   cursor: zoom-in;
 }
@@ -594,9 +668,15 @@ body {
   color: #4f46e5;
 }
 
+.report-image-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .report-image {
-  max-width: 140px;
-  max-height: 100px;
+  max-width: 100px;
+  max-height: 80px;
   display: block;
   object-fit: contain;
 }

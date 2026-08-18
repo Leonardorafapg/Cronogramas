@@ -7,7 +7,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from sqlalchemy import func
+from sqlalchemy import func, inspect, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
@@ -15,10 +15,23 @@ from . import models, schemas
 from .database import Base, SessionLocal, engine, get_db
 
 
+def migrar_colunas_ausentes() -> None:
+    inspector = inspect(engine)
+    if "posts" not in inspector.get_table_names():
+        return
+    colunas_existentes = {col["name"] for col in inspector.get_columns("posts")}
+    if "referenciaImagens" not in colunas_existentes:
+        tipo_json = "JSONB" if engine.dialect.name == "postgresql" else "JSON"
+        with engine.begin() as conn:
+            conn.execute(text(f'ALTER TABLE posts ADD COLUMN "referenciaImagens" {tipo_json}'))
+            conn.execute(text('UPDATE posts SET "referenciaImagens" = \'[]\' WHERE "referenciaImagens" IS NULL'))
+
+
 def criar_tabelas_com_retry(tentativas: int = 10, espera_segundos: float = 2.0) -> None:
     for tentativa in range(1, tentativas + 1):
         try:
             Base.metadata.create_all(bind=engine)
+            migrar_colunas_ausentes()
             return
         except OperationalError:
             if tentativa == tentativas:
@@ -97,6 +110,7 @@ def criar_post(payload: schemas.PostInput, db: Session = Depends(get_db)):
         descricao=payload.descricao,
         referenciaTipo=payload.referenciaTipo,
         referenciaValor=payload.referenciaValor,
+        referenciaImagens=payload.referenciaImagens,
         criadoEm=agora,
         atualizadoEm=agora,
     )
@@ -117,6 +131,7 @@ def atualizar_post(post_id: str, payload: schemas.PostInput, db: Session = Depen
     post.descricao = payload.descricao
     post.referenciaTipo = payload.referenciaTipo
     post.referenciaValor = payload.referenciaValor
+    post.referenciaImagens = payload.referenciaImagens
     post.atualizadoEm = now_iso()
 
     db.commit()

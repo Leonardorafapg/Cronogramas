@@ -78,13 +78,18 @@ export default function Drawer({ date, cliente, posts, onClose, onCreate, onUpda
                       {post.referenciaValor}
                     </a>
                   )}
-                  {post.referenciaTipo === "imagem" && post.referenciaValor && (
-                    <img
-                      src={post.referenciaValor}
-                      alt="Referência"
-                      className="image-preview image-preview-clickable"
-                      onClick={() => setFullscreenImage(post.referenciaValor)}
-                    />
+                  {post.referenciaTipo === "imagem" && post.referenciaImagens.length > 0 && (
+                    <div className="image-grid">
+                      {post.referenciaImagens.map((img, index) => (
+                        <img
+                          key={index}
+                          src={img}
+                          alt={`Referência ${index + 1}`}
+                          className="image-grid-thumb image-preview-clickable"
+                          onClick={() => setFullscreenImage(img)}
+                        />
+                      ))}
+                    </div>
                   )}
                   <div className="drawer-post-actions">
                     <button className="btn-link" onClick={() => startEdit(post)}>editar</button>

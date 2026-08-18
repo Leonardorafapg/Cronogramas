@@ -1,4 +1,4 @@
-import { useState, FormEvent, ChangeEvent } from "react";
+import { useState, useRef, FormEvent, ChangeEvent, DragEvent } from "react";
 import type { Post, PostInput, ReferenciaTipo } from "../types";
 
 interface PostFormProps {
@@ -17,6 +17,7 @@ const emptyForm = (data: string, cliente: string): PostInput => ({
   descricao: "",
   referenciaTipo: "link",
   referenciaValor: "",
+  referenciaImagens: [],
 });
 
 type FieldErrors = Partial<Record<"descricao" | "referenciaValor", string>>;
@@ -30,12 +31,15 @@ export default function PostForm({ data, cliente, post, onSubmit, onCancel }: Po
           descricao: post.descricao,
           referenciaTipo: post.referenciaTipo,
           referenciaValor: post.referenciaValor,
+          referenciaImagens: post.referenciaImagens,
         }
       : emptyForm(data, cliente)
   );
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   function updateField<K extends keyof PostInput>(field: K, value: PostInput[K]) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -47,29 +51,72 @@ export default function PostForm({ data, cliente, post, onSubmit, onCancel }: Po
   function handleTipoChange(tipo: ReferenciaTipo) {
     setImageError(null);
     setErrors((prev) => ({ ...prev, referenciaValor: undefined }));
-    setForm((prev) => ({ ...prev, referenciaTipo: tipo, referenciaValor: "" }));
+    setForm((prev) => ({ ...prev, referenciaTipo: tipo, referenciaValor: "", referenciaImagens: [] }));
   }
 
-  function handleImageChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  function readImageFile(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error("Falha ao ler a imagem."));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function addImageFiles(fileList: FileList | File[]) {
+    const files = Array.from(fileList);
+    if (files.length === 0) return;
     setImageError(null);
-    if (!file.type.startsWith("image/")) {
-      setImageError("Selecione um arquivo de imagem válido.");
-      return;
+
+    const validos: File[] = [];
+    for (const file of files) {
+      if (!file.type.startsWith("image/")) {
+        setImageError("Selecione apenas arquivos de imagem.");
+        continue;
+      }
+      if (file.size > MAX_IMAGE_BYTES) {
+        setImageError("Cada imagem deve ter no máximo 4MB.");
+        continue;
+      }
+      validos.push(file);
     }
-    if (file.size > MAX_IMAGE_BYTES) {
-      setImageError("A imagem deve ter no máximo 4MB.");
-      return;
+
+    if (validos.length === 0) return;
+
+    try {
+      const novasImagens = await Promise.all(validos.map(readImageFile));
+      setForm((prev) => ({ ...prev, referenciaImagens: [...prev.referenciaImagens, ...novasImagens] }));
+    } catch {
+      setImageError("Falha ao ler uma ou mais imagens.");
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      updateField("referenciaValor", String(reader.result));
-    };
-    reader.onerror = () => {
-      setImageError("Falha ao ler a imagem.");
-    };
-    reader.readAsDataURL(file);
+  }
+
+  function handleImageInputChange(e: ChangeEvent<HTMLInputElement>) {
+    if (e.target.files) addImageFiles(e.target.files);
+    e.target.value = "";
+  }
+
+  function removeImage(index: number) {
+    setForm((prev) => ({
+      ...prev,
+      referenciaImagens: prev.referenciaImagens.filter((_, i) => i !== index),
+    }));
+  }
+
+  function handleDragOver(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setDragActive(true);
+  }
+
+  function handleDragLeave(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setDragActive(false);
+  }
+
+  function handleDrop(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setDragActive(false);
+    if (e.dataTransfer.files) addImageFiles(e.dataTransfer.files);
   }
 
   function validate(): FieldErrors {
@@ -140,9 +187,40 @@ export default function PostForm({ data, cliente, post, onSubmit, onCancel }: Po
           />
         ) : (
           <div className="image-upload">
-            <input type="file" accept="image/*" onChange={handleImageChange} />
-            {form.referenciaValor && (
-              <img src={form.referenciaValor} alt="Referência" className="image-preview" />
+            <div
+              className={dragActive ? "dropzone dropzone-active" : "dropzone"}
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              <span>Arraste as imagens aqui ou clique para escolher</span>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleImageInputChange}
+                className="dropzone-input"
+              />
+            </div>
+
+            {form.referenciaImagens.length > 0 && (
+              <div className="image-grid">
+                {form.referenciaImagens.map((img, index) => (
+                  <div key={index} className="image-grid-item">
+                    <img src={img} alt={`Referência ${index + 1}`} className="image-grid-thumb" />
+                    <button
+                      type="button"
+                      className="image-grid-remove"
+                      onClick={() => removeImage(index)}
+                      aria-label="Remover imagem"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         )}

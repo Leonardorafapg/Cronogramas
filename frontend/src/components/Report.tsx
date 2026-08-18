@@ -69,10 +69,14 @@ export default function Report({ cliente, rotuloMes, posts, onClose }: ReportPro
                       {post.referenciaValor}
                     </a>
                   )}
-                  {post.referenciaTipo === "imagem" && post.referenciaValor && (
-                    <img src={post.referenciaValor} alt="Referência" className="report-image" />
+                  {post.referenciaTipo === "imagem" && post.referenciaImagens.length > 0 && (
+                    <div className="report-image-grid">
+                      {post.referenciaImagens.map((img, index) => (
+                        <img key={index} src={img} alt={`Referência ${index + 1}`} className="report-image" />
+                      ))}
+                    </div>
                   )}
-                  {!post.referenciaValor && "Sem referência."}
+                  {!post.referenciaValor && post.referenciaImagens.length === 0 && "Sem referência."}
                 </td>
               </tr>
             ))}

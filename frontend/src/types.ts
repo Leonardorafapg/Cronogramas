@@ -6,14 +6,15 @@ export interface Post {
   cliente: string;
   descricao: string;
   referenciaTipo: ReferenciaTipo;
-  referenciaValor: string; // URL (link) ou data URI base64 (imagem)
+  referenciaValor: string; // URL, usado quando referenciaTipo === "link"
+  referenciaImagens: string[]; // data URIs base64, usado quando referenciaTipo === "imagem"
   criadoEm: string;
   atualizadoEm: string;
 }
 
 export type PostInput = Pick<
   Post,
-  "data" | "cliente" | "descricao" | "referenciaTipo" | "referenciaValor"
+  "data" | "cliente" | "descricao" | "referenciaTipo" | "referenciaValor" | "referenciaImagens"
 >;
 
 export interface Cliente {
