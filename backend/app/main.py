@@ -20,11 +20,12 @@ def migrar_colunas_ausentes() -> None:
     if "posts" not in inspector.get_table_names():
         return
     colunas_existentes = {col["name"] for col in inspector.get_columns("posts")}
-    if "referenciaImagens" not in colunas_existentes:
-        tipo_json = "JSONB" if engine.dialect.name == "postgresql" else "JSON"
-        with engine.begin() as conn:
-            conn.execute(text(f'ALTER TABLE posts ADD COLUMN "referenciaImagens" {tipo_json}'))
-            conn.execute(text('UPDATE posts SET "referenciaImagens" = \'[]\' WHERE "referenciaImagens" IS NULL'))
+    tipo_json = "JSONB" if engine.dialect.name == "postgresql" else "JSON"
+    for coluna in ("referenciaImagens", "materialImagens", "fotoProntaImagens"):
+        if coluna not in colunas_existentes:
+            with engine.begin() as conn:
+                conn.execute(text(f'ALTER TABLE posts ADD COLUMN "{coluna}" {tipo_json}'))
+                conn.execute(text(f'UPDATE posts SET "{coluna}" = \'[]\' WHERE "{coluna}" IS NULL'))
 
 
 def criar_tabelas_com_retry(tentativas: int = 10, espera_segundos: float = 2.0) -> None:
@@ -108,9 +109,9 @@ def criar_post(payload: schemas.PostInput, db: Session = Depends(get_db)):
         data=payload.data,
         cliente=payload.cliente,
         descricao=payload.descricao,
-        referenciaTipo=payload.referenciaTipo,
-        referenciaValor=payload.referenciaValor,
         referenciaImagens=payload.referenciaImagens,
+        materialImagens=payload.materialImagens,
+        fotoProntaImagens=payload.fotoProntaImagens,
         criadoEm=agora,
         atualizadoEm=agora,
     )
@@ -129,9 +130,9 @@ def atualizar_post(post_id: str, payload: schemas.PostInput, db: Session = Depen
     post.data = payload.data
     post.cliente = payload.cliente
     post.descricao = payload.descricao
-    post.referenciaTipo = payload.referenciaTipo
-    post.referenciaValor = payload.referenciaValor
     post.referenciaImagens = payload.referenciaImagens
+    post.materialImagens = payload.materialImagens
+    post.fotoProntaImagens = payload.fotoProntaImagens
     post.atualizadoEm = now_iso()
 
     db.commit()

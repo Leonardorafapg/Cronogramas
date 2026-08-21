@@ -1,8 +1,4 @@
-from typing import Literal
-
 from pydantic import BaseModel, ConfigDict, field_validator
-
-ReferenciaTipo = Literal["link", "imagem"]
 
 
 class ClienteCreate(BaseModel):
@@ -28,9 +24,9 @@ class PostInput(BaseModel):
     data: str
     cliente: str
     descricao: str
-    referenciaTipo: ReferenciaTipo = "link"
-    referenciaValor: str = ""
     referenciaImagens: list[str] = []
+    materialImagens: list[str] = []
+    fotoProntaImagens: list[str] = []
 
     @field_validator("data", "cliente", "descricao")
     @classmethod
@@ -48,8 +44,8 @@ class PostOut(BaseModel):
     data: str
     cliente: str
     descricao: str
-    referenciaTipo: ReferenciaTipo
-    referenciaValor: str
     referenciaImagens: list[str]
+    materialImagens: list[str]
+    fotoProntaImagens: list[str]
     criadoEm: str
     atualizadoEm: str
