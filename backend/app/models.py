@@ -8,6 +8,7 @@ class Cliente(Base):
 
     id = Column(String, primary_key=True, index=True)
     nome = Column(String, nullable=False, unique=True)
+    pilares = Column(JSON, nullable=False, default=list)
 
 
 class Post(Base):
@@ -18,6 +19,7 @@ class Post(Base):
     cliente = Column(String, nullable=False, index=True)
     nome = Column(String, nullable=False, default="")
     descricao = Column(Text, nullable=False)
+    legenda = Column(Text, nullable=False, default="")
     referenciaImagens = Column(JSON, nullable=False, default=list)
     materialImagens = Column(JSON, nullable=False, default=list)
     fotoProntaImagens = Column(JSON, nullable=False, default=list)

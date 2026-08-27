@@ -1,8 +1,16 @@
 from pydantic import BaseModel, ConfigDict, field_validator
 
 
+class PilarInput(BaseModel):
+    id: str
+    name: str
+    desc: str = ""
+    cadence: str = ""
+
+
 class ClienteCreate(BaseModel):
     nome: str
+    pilares: list[PilarInput] = []
 
     @field_validator("nome")
     @classmethod
@@ -18,6 +26,22 @@ class ClienteOut(BaseModel):
 
     id: str
     nome: str
+    pilares: list[PilarInput]
+
+
+class ClienteUpdate(BaseModel):
+    nome: str | None = None
+    pilares: list[PilarInput] | None = None
+
+    @field_validator("nome")
+    @classmethod
+    def nome_nao_vazio(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        value = value.strip()
+        if not value:
+            raise ValueError("O campo \"nome\" é obrigatório.")
+        return value
 
 
 class PostInput(BaseModel):
@@ -25,6 +49,7 @@ class PostInput(BaseModel):
     cliente: str
     nome: str
     descricao: str
+    legenda: str = ""
     referenciaImagens: list[str] = []
     materialImagens: list[str] = []
     fotoProntaImagens: list[str] = []
@@ -37,6 +62,11 @@ class PostInput(BaseModel):
             raise ValueError("Campo obrigatório ausente.")
         return value
 
+    @field_validator("legenda")
+    @classmethod
+    def legenda_trim(cls, value: str) -> str:
+        return value.strip() if isinstance(value, str) else value
+
 
 class PostOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -46,6 +76,7 @@ class PostOut(BaseModel):
     cliente: str
     nome: str
     descricao: str
+    legenda: str
     referenciaImagens: list[str]
     materialImagens: list[str]
     fotoProntaImagens: list[str]

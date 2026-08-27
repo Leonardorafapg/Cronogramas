@@ -17,19 +17,36 @@ from .database import Base, SessionLocal, engine, get_db
 
 def migrar_colunas_ausentes() -> None:
     inspector = inspect(engine)
-    if "posts" not in inspector.get_table_names():
-        return
-    colunas_existentes = {col["name"] for col in inspector.get_columns("posts")}
     tipo_json = "JSONB" if engine.dialect.name == "postgresql" else "JSON"
-    for coluna in ("referenciaImagens", "materialImagens", "fotoProntaImagens"):
-        if coluna not in colunas_existentes:
+
+    if "posts" in inspector.get_table_names():
+        colunas_posts = {col["name"] for col in inspector.get_columns("posts")}
+        for coluna in ("referenciaImagens", "materialImagens", "fotoProntaImagens"):
+            if coluna not in colunas_posts:
+                with engine.begin() as conn:
+                    conn.execute(text(f'ALTER TABLE posts ADD COLUMN "{coluna}" {tipo_json}'))
+                    conn.execute(text(f'UPDATE posts SET "{coluna}" = \'[]\' WHERE "{coluna}" IS NULL'))
+        if "nome" not in colunas_posts:
             with engine.begin() as conn:
-                conn.execute(text(f'ALTER TABLE posts ADD COLUMN "{coluna}" {tipo_json}'))
-                conn.execute(text(f'UPDATE posts SET "{coluna}" = \'[]\' WHERE "{coluna}" IS NULL'))
-    if "nome" not in colunas_existentes:
-        with engine.begin() as conn:
-            conn.execute(text('ALTER TABLE posts ADD COLUMN "nome" VARCHAR'))
-            conn.execute(text("UPDATE posts SET \"nome\" = '' WHERE \"nome\" IS NULL"))
+                conn.execute(text('ALTER TABLE posts ADD COLUMN "nome" VARCHAR'))
+                conn.execute(text("UPDATE posts SET \"nome\" = '' WHERE \"nome\" IS NULL"))
+        if "legenda" not in colunas_posts:
+            with engine.begin() as conn:
+                conn.execute(text('ALTER TABLE posts ADD COLUMN "legenda" TEXT'))
+                conn.execute(text("UPDATE posts SET \"legenda\" = '' WHERE \"legenda\" IS NULL"))
+        # Coluna legada de uma versão anterior do schema, sem uso no código
+        # atual. Ficou NOT NULL no banco e passou a quebrar todo INSERT
+        # porque nada aqui a preenche mais.
+        if "referenciaTipo" in colunas_posts and engine.dialect.name == "postgresql":
+            with engine.begin() as conn:
+                conn.execute(text('ALTER TABLE posts ALTER COLUMN "referenciaTipo" DROP NOT NULL'))
+
+    if "clientes" in inspector.get_table_names():
+        colunas_clientes = {col["name"] for col in inspector.get_columns("clientes")}
+        if "pilares" not in colunas_clientes:
+            with engine.begin() as conn:
+                conn.execute(text(f'ALTER TABLE clientes ADD COLUMN "pilares" {tipo_json}'))
+                conn.execute(text("UPDATE clientes SET \"pilares\" = '[]' WHERE \"pilares\" IS NULL"))
 
 
 def criar_tabelas_com_retry(tentativas: int = 10, espera_segundos: float = 2.0) -> None:
@@ -68,6 +85,16 @@ def new_id() -> str:
     return uuid.uuid4().hex
 
 
+# Pilares padrão pra cliente criado sem lista própria — só um ponto de
+# partida editável depois pela aba de planejamento do cliente.
+DEFAULT_PILARES = [
+    {"id": "institucional", "name": "Institucional", "cadence": "Fixo", "desc": "Marca, valores, apresentação."},
+    {"id": "produto", "name": "Produto/Serviço", "cadence": "Fixo", "desc": "O que é vendido/oferecido."},
+    {"id": "bastidores", "name": "Bastidores", "cadence": "Rotativo", "desc": "Rotina, equipe, processo."},
+    {"id": "prova-social", "name": "Prova social", "cadence": "Rotativo", "desc": "Depoimentos, resultados, avaliações."},
+]
+
+
 @app.get("/api/clientes", response_model=list[schemas.ClienteOut])
 def listar_clientes(db: Session = Depends(get_db)):
     return db.query(models.Cliente).order_by(models.Cliente.nome).all()
@@ -83,8 +110,34 @@ def criar_cliente(payload: schemas.ClienteCreate, db: Session = Depends(get_db))
     if existente:
         raise HTTPException(status_code=400, detail="Já existe um cliente com esse nome.")
 
-    cliente = models.Cliente(id=new_id(), nome=payload.nome)
+    pilares = [p.model_dump() for p in payload.pilares] or DEFAULT_PILARES
+    cliente = models.Cliente(id=new_id(), nome=payload.nome, pilares=pilares)
     db.add(cliente)
+    db.commit()
+    db.refresh(cliente)
+    return cliente
+
+
+@app.put("/api/clientes/{cliente_id}", response_model=schemas.ClienteOut)
+def atualizar_cliente(cliente_id: str, payload: schemas.ClienteUpdate, db: Session = Depends(get_db)):
+    cliente = db.query(models.Cliente).filter(models.Cliente.id == cliente_id).first()
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado.")
+
+    if payload.nome is not None:
+        existente = (
+            db.query(models.Cliente)
+            .filter(func.lower(models.Cliente.nome) == payload.nome.lower())
+            .filter(models.Cliente.id != cliente_id)
+            .first()
+        )
+        if existente:
+            raise HTTPException(status_code=400, detail="Já existe um cliente com esse nome.")
+        cliente.nome = payload.nome
+
+    if payload.pilares is not None:
+        cliente.pilares = [p.model_dump() for p in payload.pilares]
+
     db.commit()
     db.refresh(cliente)
     return cliente
@@ -114,6 +167,7 @@ def criar_post(payload: schemas.PostInput, db: Session = Depends(get_db)):
         cliente=payload.cliente,
         nome=payload.nome,
         descricao=payload.descricao,
+        legenda=payload.legenda,
         referenciaImagens=payload.referenciaImagens,
         materialImagens=payload.materialImagens,
         fotoProntaImagens=payload.fotoProntaImagens,
@@ -136,6 +190,7 @@ def atualizar_post(post_id: str, payload: schemas.PostInput, db: Session = Depen
     post.cliente = payload.cliente
     post.nome = payload.nome
     post.descricao = payload.descricao
+    post.legenda = payload.legenda
     post.referenciaImagens = payload.referenciaImagens
     post.materialImagens = payload.materialImagens
     post.fotoProntaImagens = payload.fotoProntaImagens
