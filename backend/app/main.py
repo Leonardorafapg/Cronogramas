@@ -34,12 +34,22 @@ def migrar_colunas_ausentes() -> None:
             with engine.begin() as conn:
                 conn.execute(text('ALTER TABLE posts ADD COLUMN "legenda" TEXT'))
                 conn.execute(text("UPDATE posts SET \"legenda\" = '' WHERE \"legenda\" IS NULL"))
-        # Coluna legada de uma versão anterior do schema, sem uso no código
-        # atual. Ficou NOT NULL no banco e passou a quebrar todo INSERT
-        # porque nada aqui a preenche mais.
-        if "referenciaTipo" in colunas_posts and engine.dialect.name == "postgresql":
-            with engine.begin() as conn:
-                conn.execute(text('ALTER TABLE posts ALTER COLUMN "referenciaTipo" DROP NOT NULL'))
+        # Colunas legadas de versões anteriores do schema (ex: referenciaTipo/
+        # referenciaValor, substituídas pelas listas de imagens) continuam no
+        # banco mesmo sem uso no código atual. Se alguma ficou NOT NULL, todo
+        # INSERT novo quebra porque nada aqui as preenche mais — então
+        # liberamos qualquer coluna órfã (existe no banco, não existe no
+        # model) que ainda seja obrigatória.
+        if engine.dialect.name == "postgresql":
+            colunas_modelo = {c.name for c in models.Post.__table__.columns}
+            colunas_orfas_obrigatorias = {
+                col["name"]
+                for col in inspector.get_columns("posts")
+                if col["name"] not in colunas_modelo and not col["nullable"]
+            }
+            for coluna_legada in colunas_orfas_obrigatorias:
+                with engine.begin() as conn:
+                    conn.execute(text(f'ALTER TABLE posts ALTER COLUMN "{coluna_legada}" DROP NOT NULL'))
 
     if "clientes" in inspector.get_table_names():
         colunas_clientes = {col["name"] for col in inspector.get_columns("clientes")}
