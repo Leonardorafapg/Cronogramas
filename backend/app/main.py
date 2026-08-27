@@ -26,6 +26,10 @@ def migrar_colunas_ausentes() -> None:
             with engine.begin() as conn:
                 conn.execute(text(f'ALTER TABLE posts ADD COLUMN "{coluna}" {tipo_json}'))
                 conn.execute(text(f'UPDATE posts SET "{coluna}" = \'[]\' WHERE "{coluna}" IS NULL'))
+    if "nome" not in colunas_existentes:
+        with engine.begin() as conn:
+            conn.execute(text('ALTER TABLE posts ADD COLUMN "nome" VARCHAR'))
+            conn.execute(text("UPDATE posts SET \"nome\" = '' WHERE \"nome\" IS NULL"))
 
 
 def criar_tabelas_com_retry(tentativas: int = 10, espera_segundos: float = 2.0) -> None:
@@ -108,6 +112,7 @@ def criar_post(payload: schemas.PostInput, db: Session = Depends(get_db)):
         id=new_id(),
         data=payload.data,
         cliente=payload.cliente,
+        nome=payload.nome,
         descricao=payload.descricao,
         referenciaImagens=payload.referenciaImagens,
         materialImagens=payload.materialImagens,
@@ -129,6 +134,7 @@ def atualizar_post(post_id: str, payload: schemas.PostInput, db: Session = Depen
 
     post.data = payload.data
     post.cliente = payload.cliente
+    post.nome = payload.nome
     post.descricao = payload.descricao
     post.referenciaImagens = payload.referenciaImagens
     post.materialImagens = payload.materialImagens

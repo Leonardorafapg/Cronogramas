@@ -23,12 +23,13 @@ class ClienteOut(BaseModel):
 class PostInput(BaseModel):
     data: str
     cliente: str
+    nome: str
     descricao: str
     referenciaImagens: list[str] = []
     materialImagens: list[str] = []
     fotoProntaImagens: list[str] = []
 
-    @field_validator("data", "cliente", "descricao")
+    @field_validator("data", "cliente", "nome", "descricao")
     @classmethod
     def campo_nao_vazio(cls, value: str) -> str:
         value = value.strip() if isinstance(value, str) else value
@@ -43,6 +44,7 @@ class PostOut(BaseModel):
     id: str
     data: str
     cliente: str
+    nome: str
     descricao: str
     referenciaImagens: list[str]
     materialImagens: list[str]

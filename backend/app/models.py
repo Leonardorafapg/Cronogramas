@@ -16,6 +16,7 @@ class Post(Base):
     id = Column(String, primary_key=True, index=True)
     data = Column(String, nullable=False)
     cliente = Column(String, nullable=False, index=True)
+    nome = Column(String, nullable=False, default="")
     descricao = Column(Text, nullable=False)
     referenciaImagens = Column(JSON, nullable=False, default=list)
     materialImagens = Column(JSON, nullable=False, default=list)
