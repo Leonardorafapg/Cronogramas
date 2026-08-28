@@ -50,6 +50,9 @@ class PostInput(BaseModel):
     nome: str
     descricao: str
     legenda: str = ""
+    tipo: str = "imagem"
+    materialStatus: str = "tenho"
+    roteiro: dict = {}
     referenciaImagens: list[str] = []
     materialImagens: list[str] = []
     fotoProntaImagens: list[str] = []
@@ -67,6 +70,20 @@ class PostInput(BaseModel):
     def legenda_trim(cls, value: str) -> str:
         return value.strip() if isinstance(value, str) else value
 
+    @field_validator("tipo")
+    @classmethod
+    def tipo_valido(cls, value: str) -> str:
+        if value not in ("imagem", "video"):
+            raise ValueError('O campo "tipo" precisa ser "imagem" ou "video".')
+        return value
+
+    @field_validator("materialStatus")
+    @classmethod
+    def material_status_valido(cls, value: str) -> str:
+        if value not in ("tenho", "preciso-captar"):
+            raise ValueError('O campo "materialStatus" precisa ser "tenho" ou "preciso-captar".')
+        return value
+
 
 class PostOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -77,6 +94,9 @@ class PostOut(BaseModel):
     nome: str
     descricao: str
     legenda: str
+    tipo: str
+    materialStatus: str
+    roteiro: dict
     referenciaImagens: list[str]
     materialImagens: list[str]
     fotoProntaImagens: list[str]

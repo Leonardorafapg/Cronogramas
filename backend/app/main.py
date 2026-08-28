@@ -34,6 +34,18 @@ def migrar_colunas_ausentes() -> None:
             with engine.begin() as conn:
                 conn.execute(text('ALTER TABLE posts ADD COLUMN "legenda" TEXT'))
                 conn.execute(text("UPDATE posts SET \"legenda\" = '' WHERE \"legenda\" IS NULL"))
+        if "tipo" not in colunas_posts:
+            with engine.begin() as conn:
+                conn.execute(text('ALTER TABLE posts ADD COLUMN "tipo" VARCHAR'))
+                conn.execute(text("UPDATE posts SET \"tipo\" = 'imagem' WHERE \"tipo\" IS NULL"))
+        if "materialStatus" not in colunas_posts:
+            with engine.begin() as conn:
+                conn.execute(text('ALTER TABLE posts ADD COLUMN "materialStatus" VARCHAR'))
+                conn.execute(text("UPDATE posts SET \"materialStatus\" = 'tenho' WHERE \"materialStatus\" IS NULL"))
+        if "roteiro" not in colunas_posts:
+            with engine.begin() as conn:
+                conn.execute(text(f'ALTER TABLE posts ADD COLUMN "roteiro" {tipo_json}'))
+                conn.execute(text("UPDATE posts SET \"roteiro\" = '{}' WHERE \"roteiro\" IS NULL"))
         # Colunas legadas de versões anteriores do schema (ex: referenciaTipo/
         # referenciaValor, substituídas pelas listas de imagens) continuam no
         # banco mesmo sem uso no código atual. Se alguma ficou NOT NULL, todo
@@ -178,6 +190,9 @@ def criar_post(payload: schemas.PostInput, db: Session = Depends(get_db)):
         nome=payload.nome,
         descricao=payload.descricao,
         legenda=payload.legenda,
+        tipo=payload.tipo,
+        materialStatus=payload.materialStatus,
+        roteiro=payload.roteiro,
         referenciaImagens=payload.referenciaImagens,
         materialImagens=payload.materialImagens,
         fotoProntaImagens=payload.fotoProntaImagens,
@@ -201,6 +216,9 @@ def atualizar_post(post_id: str, payload: schemas.PostInput, db: Session = Depen
     post.nome = payload.nome
     post.descricao = payload.descricao
     post.legenda = payload.legenda
+    post.tipo = payload.tipo
+    post.materialStatus = payload.materialStatus
+    post.roteiro = payload.roteiro
     post.referenciaImagens = payload.referenciaImagens
     post.materialImagens = payload.materialImagens
     post.fotoProntaImagens = payload.fotoProntaImagens
