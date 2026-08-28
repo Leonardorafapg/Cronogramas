@@ -18,7 +18,7 @@ class Post(Base):
     data = Column(String, nullable=False)
     cliente = Column(String, nullable=False, index=True)
     nome = Column(String, nullable=False, default="")
-    descricao = Column(Text, nullable=False)
+    descricao = Column(Text, nullable=False, default="")
     legenda = Column(Text, nullable=False, default="")
     tipo = Column(String, nullable=False, default="imagem")
     materialStatus = Column(String, nullable=False, default="tenho")

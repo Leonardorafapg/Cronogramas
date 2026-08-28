@@ -48,7 +48,7 @@ class PostInput(BaseModel):
     data: str
     cliente: str
     nome: str
-    descricao: str
+    descricao: str = ""
     legenda: str = ""
     tipo: str = "imagem"
     materialStatus: str = "tenho"
@@ -57,7 +57,7 @@ class PostInput(BaseModel):
     materialImagens: list[str] = []
     fotoProntaImagens: list[str] = []
 
-    @field_validator("data", "cliente", "nome", "descricao")
+    @field_validator("data", "cliente", "nome")
     @classmethod
     def campo_nao_vazio(cls, value: str) -> str:
         value = value.strip() if isinstance(value, str) else value
@@ -65,9 +65,9 @@ class PostInput(BaseModel):
             raise ValueError("Campo obrigatório ausente.")
         return value
 
-    @field_validator("legenda")
+    @field_validator("descricao", "legenda")
     @classmethod
-    def legenda_trim(cls, value: str) -> str:
+    def texto_trim(cls, value: str) -> str:
         return value.strip() if isinstance(value, str) else value
 
     @field_validator("tipo")
